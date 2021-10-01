@@ -15,10 +15,10 @@ from utils.utils import InputPadder
 
 
 
-DEVICE = 'cuda'
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 def load_image(imfile):
-    img = np.array(Image.open(imfile)).astype(np.uint8)
+    img = cv2.imread(imfile)#np.array(Image.open(imfile)).astype(np.uint8)
     img = torch.from_numpy(img).permute(2, 0, 1).float()
     return img[None].to(DEVICE)
 
@@ -28,20 +28,21 @@ def viz(img, flo):
     flo = flo[0].permute(1,2,0).cpu().numpy()
     
     # map flow to rgb image
+    breakpoint()
     flo = flow_viz.flow_to_image(flo)
     img_flo = np.concatenate([img, flo], axis=0)
 
-    # import matplotlib.pyplot as plt
-    # plt.imshow(img_flo / 255.0)
-    # plt.show()
+    import matplotlib.pyplot as plt
+    plt.imshow(img_flo / 255.0)
+    plt.show()
 
-    cv2.imshow('image', img_flo[:, :, [2,1,0]]/255.0)
-    cv2.waitKey()
+    # cv2.imshow('image', img_flo[:, :, [2,1,0]]/255.0)
+    # cv2.waitKey()
 
 
 def demo(args):
     model = torch.nn.DataParallel(RAFT(args))
-    model.load_state_dict(torch.load(args.model))
+    model.load_state_dict(torch.load(args.model,map_location=torch.device('cpu')))
 
     model = model.module
     model.to(DEVICE)
@@ -49,10 +50,13 @@ def demo(args):
 
     with torch.no_grad():
         images = glob.glob(os.path.join(args.path, '*.png')) + \
-                 glob.glob(os.path.join(args.path, '*.jpg'))
+                 glob.glob(os.path.join(args.path, '*.jpg')) + \
+                     glob.glob(os.path.join(args.path, '*.pgm')) + \
+                         glob.glob(os.path.join(args.path, '*.ppm'))
         
         images = sorted(images)
         for imfile1, imfile2 in zip(images[:-1], images[1:]):
+            # breakpoint()
             image1 = load_image(imfile1)
             image2 = load_image(imfile2)
 
